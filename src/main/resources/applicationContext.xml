@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/tx
+        http://www.springframework.org/schema/tx/spring-tx.xsd
+        http://www.springframework.org/schema/aop
+        http://www.springframework.org/schema/aop/spring-aop.xsd
+        http://www.springframework.org/schema/context
+        http://www.springframework.org/schema/context/spring-context.xsd">
+
+    <!--组件扫描，扫描service和mapper-->
+    <context:component-scan base-package="com.htl">
+        <!--排除对controller的扫描-->
+        <context:exclude-filter type="annotation" expression="org.springframework.stereotype.Controller"/>
+    </context:component-scan>
+
+    <!--将Session工厂交给Spring容器管理，从容器中获得执行操作的Mapper实例。-->
+    <!--1、加载properties文件-->
+    <context:property-placeholder location="classpath:jdbc.properties"/>
+    <!--2、配置数据源信息-->
+    <bean id="c3p0-dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+        <property name="driverClass" value="${jdbc.driver}"/>
+        <property name="jdbcUrl" value="${jdbc.url}"/>
+        <property name="user" value="${jdbc.username}"/>
+        <property name="password" value="${jdbc.password}"/>
+        <!-- 若数据库中连接数不足时, 一次向数据库服务器申请多少个连接 -->
+        <property name="acquireIncrement" value="5"/>
+        <!-- 初始化数据库连接池时连接的数量 -->
+        <property name="initialPoolSize" value="5"/>
+        <!-- 数据库连接池中的最小的数据库连接数 -->
+        <property name="minPoolSize" value="5"/>
+        <!-- 数据库连接池中的最大的数据库连接数 -->
+        <property name="maxPoolSize" value="10"/>
+    </bean>
+    <!--3、配置sessionFactory-->
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <!--加载数据源-->
+        <property name="dataSource" ref="c3p0-dataSource"/>
+        <!--加载mybatis核心配置文件-->
+        <property name="configLocation" value="classpath:sqlMapConfig.xml"/>
+    </bean>
+
+    <!--扫描mapper所在的包，为mapper创建实现类，放到容器当中。-->
+    <bean id="mapperScannerConfigurer" class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <property name="basePackage" value="com.htl.mapper"/>
+    </bean>
+
+    <!--将事务的控制交给Spring容器进行声明式事务控制。-->
+    <!--1、配置平台事务管理器-->
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="c3p0-dataSource"/>
+    </bean>
+    <!--2、配置事务增强-->
+    <tx:advice id="txAdvice">
+        <tx:attributes>
+            <!--name: *表示任意方法名称-->
+            <tx:method name="*"/>
+        </tx:attributes>
+    </tx:advice>
+    <!--3、事务的aop织入-->
+    <aop:config>
+        <aop:advisor advice-ref="txAdvice" pointcut="execution(* com.htl.service.impl.*.*(..))"/>
+    </aop:config>
+
+</beans>
+
